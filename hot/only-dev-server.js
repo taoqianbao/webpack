@@ -17,21 +17,15 @@ if(module.hot) {
 			}
 
 			module.hot.apply({
-				ignoreUnaccepted: true
-			}, function(err, renewedModules) {
-				if(err) {
-					if(module.hot.status() in {
-							abort: 1,
-							fail: 1
-						}) {
-						console.warn("[HMR] Cannot apply update. Need to do a full reload!");
-						console.warn("[HMR] " + err.stack || err.message);
-					} else {
-						console.warn("[HMR] Update failed: " + err.stack || err.message);
-					}
-					return;
+				ignoreUnaccepted: true,
+				ignoreDeclined: true,
+				onUnaccepted: function(data) {
+					console.warn("Ignored an update to unaccepted module " + data.chain.join(" -> "));
+				},
+				onDeclined: function(data) {
+					console.warn("Ignored an update to declined module " + data.chain.join(" -> "));
 				}
-
+			}).then(function(renewedModules) {
 				if(!upToDate()) {
 					check();
 				}
@@ -41,12 +35,18 @@ if(module.hot) {
 				if(upToDate()) {
 					console.log("[HMR] App is up to date.");
 				}
+			}).catch(function(err) {
+				var status = module.hot.status();
+				if(["abort", "fail"].indexOf(status) >= 0) {
+					console.warn("[HMR] Cannot apply update. Need to do a full reload!");
+					console.warn("[HMR] " + err.stack || err.message);
+				} else {
+					console.warn("[HMR] Update failed: " + err.stack || err.message);
+				}
 			});
 		}).catch(function(err) {
-			if(module.hot.status() in {
-					abort: 1,
-					fail: 1
-				}) {
+			var status = module.hot.status();
+			if(["abort", "fail"].indexOf(status) >= 0) {
 				console.warn("[HMR] Cannot check for update. Need to do a full reload!");
 				console.warn("[HMR] " + err.stack || err.message);
 			} else {
@@ -57,9 +57,14 @@ if(module.hot) {
 	var hotEmitter = require("./emitter");
 	hotEmitter.on("webpackHotUpdate", function(currentHash) {
 		lastHash = currentHash;
-		if(!upToDate() && module.hot.status() === "idle") {
-			console.log("[HMR] Checking for updates on the server...");
-			check();
+		if(!upToDate()) {
+			var status = module.hot.status();
+			if(status === "idle") {
+				console.log("[HMR] Checking for updates on the server...");
+				check();
+			} else if(["abort", "fail"].indexOf(status) >= 0) {
+				console.warn("[HMR] Cannot apply update as a previous update " + status + "ed. Need to do a full reload!");
+			}
 		}
 	});
 	console.log("[HMR] Waiting for update signal from WDS...");

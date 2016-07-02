@@ -404,6 +404,15 @@ module.exports = function(optimist, argv, convertOptions) {
 		processResolveAlias("resolve-alias", "resolve");
 		processResolveAlias("resolve-loader-alias", "resolveLoader");
 
+		ifArg("resolve-extensions", function(value) {
+			ensureObject(options, "resolve");
+			if(Array.isArray(value)) {
+				options.resolve.extensions = value;
+			} else {
+				options.resolve.extensions = value.split(/,\s*/);
+			}
+		});
+
 		ifArg("optimize-max-chunks", function(value) {
 			ensureArray(options, "plugins");
 			var LimitChunkCountPlugin = require("../lib/optimize/LimitChunkCountPlugin");
@@ -424,7 +433,9 @@ module.exports = function(optimist, argv, convertOptions) {
 			ensureArray(options, "plugins");
 			var UglifyJsPlugin = require("../lib/optimize/UglifyJsPlugin");
 			var LoaderOptionsPlugin = require("../lib/LoaderOptionsPlugin");
-			options.plugins.push(new UglifyJsPlugin());
+			options.plugins.push(new UglifyJsPlugin({
+				sourceMap: options.devtool && (options.devtool.indexOf("sourcemap") >= 0 || options.devtool.indexOf("source-map") >= 0)
+			}));
 			options.plugins.push(new LoaderOptionsPlugin({
 				minimize: true
 			}));
